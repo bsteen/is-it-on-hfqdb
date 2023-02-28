@@ -1,4 +1,4 @@
-# is-it-on-hfqdb
+# is-it-on-hfqpdb
 This script checks if Harbor Freight coupons (https://www.harborfreight.com/coupons)
 have been posted to the coupon database (https://www.hfqpdb.com).
 It downloads all the active/valid coupons from HF and the database, then
