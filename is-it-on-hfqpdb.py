@@ -53,8 +53,11 @@ for r in hf_requests:
         with open(f"{SAVE_DIR}{name}", "wb") as fp:
             fp.write(image)
 
-print(f"{not_found}/{len(hf_requests)} HF coupons not found on HFQPDB (DB count={len(hfqpdb_images_hashes)})")
+print(f"{len(hf_requests) - not_found}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_images_hashes)})")
+# Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
+
 if not_found == 0:
     print("HFQPDB IS UP TO DATE")
 else:
-    print(f"Consider uploading the coupons in {SAVE_DIR} to {HFQPDB}/mass_coupon_submit")
+    print(f"Consider uploading the {not_found} missing coupon(s) in {SAVE_DIR} to {HFQPDB}/mass_coupon_submit")
+input("Press ENTER key to exit")
