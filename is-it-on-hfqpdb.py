@@ -1,9 +1,9 @@
 #!/usr/bin/python3
-# Copyright 2023, Benjamin Steenkamer
-
+# Copyright 2023 Benjamin Steenkamer
 from concurrent.futures import ThreadPoolExecutor
 import os
 import re
+import shutil
 import urllib.request
 
 HF = "https://www.harborfreight.com/coupons"
@@ -21,6 +21,7 @@ hfqpdb_requests= []  # Store pending/complete web request
 hf_requests = []
 
 # Do coupon downloading on many threads
+# TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
 with ThreadPoolExecutor() as executor:
     # Get current database coupons
     with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
@@ -36,14 +37,15 @@ with ThreadPoolExecutor() as executor:
             if p is not None:
                 p = p.group()
                 hf_requests.append(executor.submit(dl_and_hash_coupon, p))
-    # TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
 
 hfqpdb_images_hashes = []
 for r in hfqpdb_requests:
     hfqpdb_images_hashes.append(r.result()[1])   # Only care about hash of DB images
 
+if os.path.exists(SAVE_DIR):
+    shutil.rmtree(SAVE_DIR) # Delete old coupon folder, if it exists
+
 not_found = 0
-os.system(f"rm -rf {SAVE_DIR}")
 for r in hf_requests:
     image, image_hash, name = r.result()
     if image_hash not in hfqpdb_images_hashes:
