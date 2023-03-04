@@ -22,6 +22,7 @@ hf_requests = []
 
 # Do coupon downloading on many threads
 # TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
+# TODO promotion coupond (% off): https://www.harborfreight.com/promotions
 with ThreadPoolExecutor() as executor:
     # Get current database coupons
     with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
