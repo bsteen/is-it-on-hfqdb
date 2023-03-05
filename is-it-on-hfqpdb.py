@@ -7,6 +7,7 @@ import shutil
 import urllib.request
 
 HF = "https://www.harborfreight.com/coupons"
+HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
 HFQPDB = "https://www.hfqpdb.com"
 SAVE_DIR = "upload_to_hfqpdb/"
 
@@ -22,7 +23,6 @@ hf_requests = []
 
 # Do coupon downloading on many threads
 # TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
-# TODO promotion coupond (% off): https://www.harborfreight.com/promotions
 with ThreadPoolExecutor() as executor:
     # Get current database coupons
     with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
@@ -32,19 +32,27 @@ with ThreadPoolExecutor() as executor:
                 p = p.group().replace("/coupons/thumbs/tn_", f"{HFQPDB}/coupons/")    # Replace thumbnail image with full resolution image
                 hfqpdb_requests.append(executor.submit(dl_and_hash_coupon, p))
     # Get HF coupons from main coupon page
-    with urllib.request.urlopen(f"{HF}") as hf_page:
+    with urllib.request.urlopen(HF) as hf_page:
         for line in hf_page.readlines():
             p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", line.decode())
             if p is not None:
                 p = p.group()
                 hf_requests.append(executor.submit(dl_and_hash_coupon, p))
 
-hfqpdb_images_hashes = []
-for r in hfqpdb_requests:
-    hfqpdb_images_hashes.append(r.result()[1])   # Only care about hash of DB images
+    # Get HF promo coupons (% off entire store, etc.)
+    with urllib.request.urlopen(HF_PROMO) as hf_page:
+        for line in hf_page.readlines():
+            p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", line.decode())
+            if p is not None:
+                p = p.group()
+                hf_requests.append(executor.submit(dl_and_hash_coupon, p))
 
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR) # Delete old coupon folder, if it exists
+
+hfqpdb_images_hashes = []
+for r in hfqpdb_requests:
+    hfqpdb_images_hashes.append(r.result()[1])   # Only care about hash of DB images
 
 not_found = 0
 for r in hf_requests:
@@ -62,5 +70,5 @@ print(f"{len(hf_requests) - not_found}/{len(hf_requests)} Harbor Freight coupons
 if not_found == 0:
     print("HFQPDB IS UP TO DATE")
 else:
-    print(f"Consider uploading the {not_found} missing coupon(s) in {SAVE_DIR} to {HFQPDB}/mass_coupon_submit")
+    print(f"Consider uploading the {not_found} missing coupon(s) in {os.getcwd()}{os.sep}{SAVE_DIR} to {HFQPDB}/mass_coupon_submit")
 input("Press ENTER key to exit")
