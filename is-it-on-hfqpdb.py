@@ -70,5 +70,5 @@ print(f"{len(hf_requests) - not_found}/{len(hf_requests)} Harbor Freight coupons
 if not_found == 0:
     print("HFQPDB IS UP TO DATE")
 else:
-    print(f"Consider uploading the {not_found} missing coupon(s) in to {HFQPDB}/mass_coupon_submit\Save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
+    print(f"Consider uploading the {not_found} missing coupon(s) in to {HFQPDB}/mass_coupon_submit\nCoupon save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
 input("Press ENTER key to exit")
