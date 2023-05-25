@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import urllib.request
+import urllib.error
 
 HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
@@ -15,8 +16,12 @@ def dl_and_hash_coupon(url):
     print("Downloading:", url)
     last_slash = url.rfind("/") + 1
     image_name =  url[last_slash:]
-    image_bytes = urllib.request.urlopen(url).read()
-    return (image_bytes, hash(image_bytes), image_name)
+    try:
+        image_bytes = urllib.request.urlopen(url).read()
+        return image_bytes, hash(image_bytes), image_name
+    except urllib.error.URLError:
+        print("FAILED TO DOWNLOAD:", url)
+        return None, None, image_name
 
 hfqpdb_requests= []  # Store pending/complete web request
 hf_requests = []
@@ -52,19 +57,20 @@ if os.path.exists(SAVE_DIR):
 
 hfqpdb_images_hashes = []
 for r in hfqpdb_requests:
-    hfqpdb_images_hashes.append(r.result()[1])   # Only care about hash of DB images
+    if r.result()[1] is not None:
+        hfqpdb_images_hashes.append(r.result()[1])   # Only care about hash of DB images
 
 not_found = 0
 for r in hf_requests:
     image, image_hash, name = r.result()
-    if image_hash not in hfqpdb_images_hashes:
+    if image_hash is not None and image_hash not in hfqpdb_images_hashes:
         os.makedirs(SAVE_DIR, exist_ok=True)
         print("Not found in database:", name)
         not_found += 1
         with open(f"{SAVE_DIR}{name}", "wb") as fp:
             fp.write(image)
 
-print(f"{len(hf_requests) - not_found}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_images_hashes)})")
+print(f"\n{len(hf_requests) - not_found}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_images_hashes)})")
 # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
 
 if not_found == 0:
