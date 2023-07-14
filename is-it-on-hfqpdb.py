@@ -12,6 +12,8 @@ HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
 HFQPDB = "https://www.hfqpdb.com"
 SAVE_DIR = "upload_to_hfqpdb/"
 
+failure_urls = []
+
 def dl_and_hash_coupon(url):
     print("Downloading:", url)
     last_slash = url.rfind("/") + 1
@@ -20,7 +22,7 @@ def dl_and_hash_coupon(url):
         image_bytes = urllib.request.urlopen(url).read()
         return image_bytes, hash(image_bytes), image_name
     except urllib.error.URLError:
-        print("FAILED TO DOWNLOAD:", url)
+        failure_urls.append(url)
         return None, None, image_name
 
 hfqpdb_requests= []  # Store pending/complete web request
@@ -60,21 +62,33 @@ for r in hfqpdb_requests:
     if r.result()[1] is not None:
         hfqpdb_images_hashes.append(r.result()[1])   # Only care about hash of DB images
 
-not_found = 0
+# Print out image URLs that failed to downloaded
+if len(failure_urls) > 0:
+    print("\nFAILED TO DOWNLOAD:")
+    for url in failure_urls:
+        print(url)
+
+# Save images that weren't found on HFQPDB
+not_found = []
 for r in hf_requests:
     image, image_hash, name = r.result()
     if image_hash is not None and image_hash not in hfqpdb_images_hashes:
         os.makedirs(SAVE_DIR, exist_ok=True)
-        print("Not found in database:", name)
-        not_found += 1
+        not_found.append(name)
         with open(f"{SAVE_DIR}{name}", "wb") as fp:
             fp.write(image)
 
-print(f"\n{len(hf_requests) - not_found}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_images_hashes)})")
+# Print out image names that were not found on HFQPDB
+if len(not_found) != 0:
+    print("\nNot found in database:")
+    for name in not_found:
+        print(name)
+
+print(f"\n{len(hf_requests) - len(not_found)}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_images_hashes)})")
 # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
 
-if not_found == 0:
+if len(not_found) == 0:
     print("HFQPDB IS UP TO DATE")
 else:
-    print(f"Consider uploading the {not_found} missing coupon(s) in to {HFQPDB}/mass_coupon_submit\nCoupon save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
+    print(f"Consider uploading the {len(not_found)} missing coupon(s) in to {HFQPDB}/mass_coupon_submit\nCoupon save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
 input("Press ENTER key to exit")
