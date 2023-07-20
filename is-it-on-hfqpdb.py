@@ -6,6 +6,7 @@ import re
 import shutil
 import urllib.request
 import urllib.error
+import http.client
 
 HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
@@ -21,7 +22,9 @@ def dl_and_hash_coupon(url):
     try:
         image_bytes = urllib.request.urlopen(url).read()
         return image_bytes, hash(image_bytes), image_name
-    except urllib.error.URLError:
+    except (urllib.error.URLError, http.client.InvalidURL):
+        # URLError = image doesn't actually exist on HF website
+        # InvalidURL = bugged file path on HF website
         failure_urls.append(url)
         return None, None, image_name
 
