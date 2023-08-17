@@ -75,21 +75,21 @@ def process_coupon(hf_coupon, database):
 if __name__ == "__main__":
     # Do coupon downloading on many threads
     # TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor() as t_executor:
         # Get current database coupons
         with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
             for line in hfqpdb_page.readlines():
                 p = re.search("\/coupons\/(.+?)(png|jpg)", line.decode())
                 if p is not None:
                     p = p.group().replace("/coupons/thumbs/tn_", f"{HFQPDB}/coupons/")    # Replace thumbnail image with full resolution image
-                    hfqpdb_requests.append(executor.submit(dl_and_hash_coupon, p))
+                    hfqpdb_requests.append(t_executor.submit(dl_and_hash_coupon, p))
         # Get HF coupons from main coupon page
         with urllib.request.urlopen(HF) as hf_page:
             for line in hf_page.readlines():
                 p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", line.decode())
                 if p is not None:
                     p = p.group()
-                    hf_requests.append(executor.submit(dl_and_hash_coupon, p))
+                    hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
 
         # Get HF promo coupons (% off entire store, etc.)
         with urllib.request.urlopen(HF_PROMO) as hf_page:
@@ -97,15 +97,16 @@ if __name__ == "__main__":
                 p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", line.decode())
                 if p is not None:
                     p = p.group()
-                    hf_requests.append(executor.submit(dl_and_hash_coupon, p))
+                    hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
 
+    # Delete old coupon folder, if it exists
     if os.path.exists(SAVE_DIR):
-        shutil.rmtree(SAVE_DIR) # Delete old coupon folder, if it exists
+        shutil.rmtree(SAVE_DIR)
 
     # Gather DB coupon results
     hfqpdb_coupons = []
     for r in hfqpdb_requests:
-        if r.result()[1] is not None:
+        if r.result()[1] is not None:           # Must wait for entire DB to be retrieved before proceeding
             hfqpdb_coupons.append(r.result())
 
     # Gather HF coupon web requests and distribute to parallel processes
