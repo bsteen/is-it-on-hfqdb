@@ -7,9 +7,9 @@ import numpy as np
 import os
 import re
 import shutil
+import tqdm
 import urllib.error
 import urllib.request
-
 
 HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     # Gather HF coupon results
     # Save images that weren't found on HFQPDB
     not_found = []
-    for r in hf_requests:
+    for r in tqdm.tqdm(hf_requests, desc="Processing coupons", ncols=120):
         hf_image, hf_image_hash, hf_name = r.result()
         if hf_image_hash is not None:
             save = True
