@@ -139,7 +139,7 @@ if __name__ == "__main__":
             print(name)
 
     # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
-    print(f"\n{len(hf_requests) - len(not_found)}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
+    print(f"\n{hf_coupon_count - len(not_found)}/{hf_coupon_count} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
 
     if len(not_found) == 0:
         print("HFQPDB IS UP TO DATE")
