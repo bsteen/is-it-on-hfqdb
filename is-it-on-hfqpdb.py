@@ -15,10 +15,10 @@ HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
 HFQPDB = "https://www.hfqpdb.com"
 SAVE_DIR = "upload_to_hfqpdb/"
-SIMILAR_THRESHOLD = 0.9     # How simliar two images have to be to be considered the same
+SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
 
 
-failure_urls = []
+failure_urls = []    # Image URLs that failed to download
 hfqpdb_requests= []  # Store pending/complete web request
 hf_requests = []
 
@@ -26,7 +26,7 @@ hf_requests = []
 def dl_and_hash_coupon(url):
     print("Downloading:", url)
     last_slash = url.rfind("/") + 1
-    image_name =  url[last_slash:]
+    image_name = url[last_slash:]
     try:
         image_bytes = urllib.request.urlopen(url).read()
         return image_bytes, hash(image_bytes), image_name
@@ -86,19 +86,21 @@ if __name__ == "__main__":
     if os.path.exists(SAVE_DIR):
         shutil.rmtree(SAVE_DIR) # Delete old coupon folder, if it exists
 
+    # Gather DB coupon results
     hfqpdb_coupons = []
     for r in hfqpdb_requests:
         if r.result()[1] is not None:
             hfqpdb_coupons.append(r.result())
 
+    # Gather HF coupon results
     # Save images that weren't found on HFQPDB
     not_found = []
     for r in hf_requests:
         hf_image, hf_image_hash, hf_name = r.result()
         if hf_image_hash is not None:
             save = True
-            for db_coupon in hfqpdb_coupons:
-                if hf_image_hash == db_coupon[1] or coupons_are_similar(db_coupon[0], hf_image[0]):
+            for db_image, db_image_hash, db_name in hfqpdb_coupons:
+                if hf_image_hash == db_image_hash or coupons_are_similar(hf_image, db_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
                     save = False
                     break
             if save:
@@ -119,8 +121,8 @@ if __name__ == "__main__":
         for name in not_found:
             print(name)
 
-    print(f"\n{len(hf_requests) - len(not_found)}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
     # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
+    print(f"\n{len(hf_requests) - len(not_found)}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
 
     if len(not_found) == 0:
         print("HFQPDB IS UP TO DATE")
