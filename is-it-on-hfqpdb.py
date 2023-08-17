@@ -91,12 +91,6 @@ if __name__ == "__main__":
         if r.result()[1] is not None:
             hfqpdb_coupons.append(r.result())
 
-    # Print out image URLs that failed to downloaded
-    if len(failure_urls) > 0:
-        print("\nFAILED TO DOWNLOAD:")
-        for url in failure_urls:
-            print(url)
-
     # Save images that weren't found on HFQPDB
     not_found = []
     for r in hf_requests:
@@ -112,6 +106,12 @@ if __name__ == "__main__":
                 not_found.append(hf_name)
                 with open(f"{SAVE_DIR}{hf_name}", "wb") as fp:
                     fp.write(hf_image)
+
+    # Print out image URLs that failed to download; all web request are completed at this point
+    if len(failure_urls) > 0:
+        print("\nFAILED TO DOWNLOAD:")
+        for url in failure_urls:
+            print(url)
 
     # Print out image names that were not found on HFQPDB
     if len(not_found) != 0:
