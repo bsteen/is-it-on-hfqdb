@@ -38,10 +38,20 @@ def dl_and_hash_coupon(url):
 
 
 def coupons_are_similar(coupon_a, coupon_b):
-    coupon_a_gray = cv2.cvtColor(coupon_a, cv2.COLOR_BGR2GRAY)
-    coupon_b_gray = cv2.cvtColor(coupon_b, cv2.COLOR_BGR2GRAY)
-    res = cv2.matchTemplate(coupon_a_gray, coupon_b_gray, cv2.TM_CCOEFF_NORMED)
-    if np.where(res >= SIMILAR_THRESHOLD):
+    nparr_a = np.frombuffer(coupon_a, np.uint8) # Convert binary string to ndarray
+    nparr_b = np.frombuffer(coupon_b, np.uint8)
+
+    img_np_a = cv2.imdecode(nparr_a, cv2.IMREAD_COLOR)  # Convert to image
+    img_np_b = cv2.imdecode(nparr_b, cv2.IMREAD_COLOR)
+
+    if img_np_a.shape != img_np_b.shape:
+        return False
+
+    coupon_a_gray = cv2.cvtColor(np.asarray(img_np_a), cv2.COLOR_BGR2GRAY)      # Convert to grayscale
+    coupon_b_gray = cv2.cvtColor(np.asarray(img_np_b), cv2.COLOR_BGR2GRAY)
+
+    res = cv2.matchTemplate(coupon_a_gray, coupon_b_gray, cv2.TM_CCOEFF_NORMED) # See if images match
+    if np.where(res >= SIMILAR_THRESHOLD)[0].size > 0:
         return True
     return False
 
