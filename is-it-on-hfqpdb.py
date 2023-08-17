@@ -1,13 +1,12 @@
 #!/usr/bin/python3
 # Copyright 2023 Benjamin Steenkamer
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import cv2
 import http.client
 import numpy as np
 import os
 import re
 import shutil
-import tqdm
 import urllib.error
 import urllib.request
 
@@ -55,6 +54,23 @@ def coupons_are_similar(coupon_a, coupon_b):
         return True
     return False
 
+def process_coupon(hf_coupon, database):
+    not_found = None
+    hf_image, hf_image_hash, hf_name = hf_coupon
+
+    if hf_image_hash is not None:
+        save = True
+        for db_image, db_image_hash, _db_name in database:
+            if hf_image_hash == db_image_hash or coupons_are_similar(hf_image, db_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
+                save = False
+                break
+        if save:
+            os.makedirs(SAVE_DIR, exist_ok=True)
+            not_found = hf_name
+            with open(f"{SAVE_DIR}{hf_name}", "wb") as fp:
+                fp.write(hf_image)
+
+    return not_found
 
 if __name__ == "__main__":
     # Do coupon downloading on many threads
@@ -92,22 +108,23 @@ if __name__ == "__main__":
         if r.result()[1] is not None:
             hfqpdb_coupons.append(r.result())
 
-    # Gather HF coupon results
-    # Save images that weren't found on HFQPDB
+    # Gather HF coupon web requests and distribute to parallel processes
+    hf_coupon_count = len(hf_requests)
+    processes = []
+    with ProcessPoolExecutor() as p_executor:
+        while hf_requests:                  # Loop through web requests, skip requests that haven't completed yet
+            request = hf_requests.pop(0)
+            try:
+                result = request.result(0.001)
+                processes.append(p_executor.submit(process_coupon, result, hfqpdb_coupons))   # Save images that weren't found on HFQPDB
+            except TimeoutError:
+                hf_requests.append(request)
+
     not_found = []
-    for r in tqdm.tqdm(hf_requests, desc="Processing coupons", ncols=120):
-        hf_image, hf_image_hash, hf_name = r.result()
-        if hf_image_hash is not None:
-            save = True
-            for db_image, db_image_hash, db_name in hfqpdb_coupons:
-                if hf_image_hash == db_image_hash or coupons_are_similar(hf_image, db_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
-                    save = False
-                    break
-            if save:
-                os.makedirs(SAVE_DIR, exist_ok=True)
-                not_found.append(hf_name)
-                with open(f"{SAVE_DIR}{hf_name}", "wb") as fp:
-                    fp.write(hf_image)
+    for process in processes:
+        coupon_not_found = process.result()
+        if coupon_not_found is not None:
+            not_found.append(coupon_not_found)
 
     # Print out image URLs that failed to download; all web request are completed at this point
     if len(failure_urls) > 0:
