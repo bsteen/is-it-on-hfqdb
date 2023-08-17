@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     # Print out image names that were not found on HFQPDB
     if len(not_found) != 0:
-        print("\nNot found in database:")
+        print("\nNot found on HFQPDB:")
         for name in not_found:
             print(name)
 
