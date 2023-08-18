@@ -1,13 +1,12 @@
 #!/usr/bin/python3
 # Copyright 2023 Benjamin Steenkamer
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import cv2
 import http.client
 import numpy as np
 import os
 import re
 import shutil
-import tqdm
 import urllib.error
 import urllib.request
 
@@ -55,25 +54,42 @@ def coupons_are_similar(coupon_a, coupon_b):
         return True
     return False
 
+def process_coupon(hf_coupon, database):
+    not_found = None
+    hf_image, hf_image_hash, hf_name = hf_coupon
+
+    if hf_image_hash is not None:
+        save = True
+        for db_image, db_image_hash, _db_name in database:
+            if hf_image_hash == db_image_hash or coupons_are_similar(hf_image, db_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
+                save = False
+                break
+        if save:
+            os.makedirs(SAVE_DIR, exist_ok=True)
+            not_found = hf_name
+            with open(f"{SAVE_DIR}{hf_name}", "wb") as fp:
+                fp.write(hf_image)
+
+    return not_found
 
 if __name__ == "__main__":
     # Do coupon downloading on many threads
     # TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor() as t_executor:
         # Get current database coupons
         with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
             for line in hfqpdb_page.readlines():
                 p = re.search("\/coupons\/(.+?)(png|jpg)", line.decode())
                 if p is not None:
                     p = p.group().replace("/coupons/thumbs/tn_", f"{HFQPDB}/coupons/")    # Replace thumbnail image with full resolution image
-                    hfqpdb_requests.append(executor.submit(dl_and_hash_coupon, p))
+                    hfqpdb_requests.append(t_executor.submit(dl_and_hash_coupon, p))
         # Get HF coupons from main coupon page
         with urllib.request.urlopen(HF) as hf_page:
             for line in hf_page.readlines():
                 p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", line.decode())
                 if p is not None:
                     p = p.group()
-                    hf_requests.append(executor.submit(dl_and_hash_coupon, p))
+                    hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
 
         # Get HF promo coupons (% off entire store, etc.)
         with urllib.request.urlopen(HF_PROMO) as hf_page:
@@ -81,33 +97,35 @@ if __name__ == "__main__":
                 p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", line.decode())
                 if p is not None:
                     p = p.group()
-                    hf_requests.append(executor.submit(dl_and_hash_coupon, p))
+                    hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
 
+    # Delete old coupon folder, if it exists
     if os.path.exists(SAVE_DIR):
-        shutil.rmtree(SAVE_DIR) # Delete old coupon folder, if it exists
+        shutil.rmtree(SAVE_DIR)
 
     # Gather DB coupon results
     hfqpdb_coupons = []
     for r in hfqpdb_requests:
-        if r.result()[1] is not None:
+        if r.result()[1] is not None:           # Must wait for entire DB to be retrieved before proceeding
             hfqpdb_coupons.append(r.result())
 
-    # Gather HF coupon results
-    # Save images that weren't found on HFQPDB
+    # Gather HF coupon web requests and distribute to parallel processes
+    hf_coupon_count = len(hf_requests)
+    processes = []
+    with ProcessPoolExecutor() as p_executor:
+        while hf_requests:                  # Loop through web requests, skip requests that haven't completed yet
+            request = hf_requests.pop(0)
+            try:
+                result = request.result(0.001)
+                processes.append(p_executor.submit(process_coupon, result, hfqpdb_coupons))   # Save images that weren't found on HFQPDB
+            except TimeoutError:
+                hf_requests.append(request)
+
     not_found = []
-    for r in tqdm.tqdm(hf_requests, desc="Processing coupons", ncols=120):
-        hf_image, hf_image_hash, hf_name = r.result()
-        if hf_image_hash is not None:
-            save = True
-            for db_image, db_image_hash, db_name in hfqpdb_coupons:
-                if hf_image_hash == db_image_hash or coupons_are_similar(hf_image, db_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
-                    save = False
-                    break
-            if save:
-                os.makedirs(SAVE_DIR, exist_ok=True)
-                not_found.append(hf_name)
-                with open(f"{SAVE_DIR}{hf_name}", "wb") as fp:
-                    fp.write(hf_image)
+    for process in processes:
+        coupon_not_found = process.result()
+        if coupon_not_found is not None:
+            not_found.append(coupon_not_found)
 
     # Print out image URLs that failed to download; all web request are completed at this point
     if len(failure_urls) > 0:
@@ -122,7 +140,7 @@ if __name__ == "__main__":
             print(name)
 
     # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
-    print(f"\n{len(hf_requests) - len(not_found)}/{len(hf_requests)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
+    print(f"\n{hf_coupon_count - len(not_found)}/{hf_coupon_count} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
 
     if len(not_found) == 0:
         print("HFQPDB IS UP TO DATE")
