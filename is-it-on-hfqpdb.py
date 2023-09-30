@@ -13,7 +13,7 @@ import urllib.request
 HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
 HFQPDB = "https://www.hfqpdb.com"
-SAVE_DIR = "upload_to_hfqpdb/"
+SAVE_DIR = "upload/"
 SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
 
 
@@ -42,9 +42,6 @@ def coupons_are_similar(coupon_a, coupon_b):
 
     img_np_a = cv2.imdecode(nparr_a, cv2.IMREAD_COLOR)  # Convert to image
     img_np_b = cv2.imdecode(nparr_b, cv2.IMREAD_COLOR)
-
-    if img_np_a.shape != img_np_b.shape:
-        return False
 
     coupon_a_gray = cv2.cvtColor(np.asarray(img_np_a), cv2.COLOR_BGR2GRAY)      # Convert to grayscale
     coupon_b_gray = cv2.cvtColor(np.asarray(img_np_b), cv2.COLOR_BGR2GRAY)
