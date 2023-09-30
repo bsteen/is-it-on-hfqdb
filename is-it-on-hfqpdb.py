@@ -37,19 +37,35 @@ def dl_and_hash_coupon(url):
 
 
 def coupons_are_similar(coupon_a, coupon_b):
+    def template_cmp(image, template_image):
+        """
+        Slides template_image over image, checking for similarities; template_image must not be greater than the image dimensions
+        """
+        try:
+            res = cv2.matchTemplate(image, template_image, cv2.TM_CCOEFF_NORMED)
+            if np.where(res >= SIMILAR_THRESHOLD)[0].size > 0:   # If there are similarities greater than threshold, they are probably the same coupon
+                return True
+            return False
+        except cv2.error:   # Happens when the template is larger than input image
+            return None
+
     nparr_a = np.frombuffer(coupon_a, np.uint8) # Convert binary string to ndarray
     nparr_b = np.frombuffer(coupon_b, np.uint8)
 
-    img_np_a = cv2.imdecode(nparr_a, cv2.IMREAD_COLOR)  # Convert to image
-    img_np_b = cv2.imdecode(nparr_b, cv2.IMREAD_COLOR)
+    img_a = cv2.imdecode(nparr_a, cv2.IMREAD_COLOR)  # Convert ndarray to CV2 image
+    img_b = cv2.imdecode(nparr_b, cv2.IMREAD_COLOR)
 
-    coupon_a_gray = cv2.cvtColor(np.asarray(img_np_a), cv2.COLOR_BGR2GRAY)      # Convert to grayscale
-    coupon_b_gray = cv2.cvtColor(np.asarray(img_np_b), cv2.COLOR_BGR2GRAY)
+    coupon_a_gray = cv2.cvtColor(img_a, cv2.COLOR_BGR2GRAY) # Convert to grayscale
+    coupon_b_gray = cv2.cvtColor(img_b, cv2.COLOR_BGR2GRAY)
 
-    res = cv2.matchTemplate(coupon_a_gray, coupon_b_gray, cv2.TM_CCOEFF_NORMED) # See if images match
-    if np.where(res >= SIMILAR_THRESHOLD)[0].size > 0:
-        return True
-    return False
+    # Try to use coupon A as input, coupon b as the template
+    # If that fails, switch the two around and try again
+    are_similar = template_cmp(coupon_a_gray, coupon_b_gray)
+    if are_similar is None:
+         are_similar = template_cmp(coupon_b_gray, coupon_a_gray)
+
+    return are_similar if are_similar is not None else False
+
 
 def process_coupon(hf_coupon, database):
     not_found = None
@@ -58,7 +74,7 @@ def process_coupon(hf_coupon, database):
     if hf_image_hash is not None:
         save = True
         for db_image, db_image_hash, _db_name in database:
-            if hf_image_hash == db_image_hash or coupons_are_similar(hf_image, db_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
+            if hf_image_hash == db_image_hash or coupons_are_similar(db_image, hf_image): # Coupon images are exactly the same (hash) or are fairly similar (CV template match)
                 save = False
                 break
         if save:
