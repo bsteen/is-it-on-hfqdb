@@ -124,6 +124,8 @@ if __name__ == "__main__":
 
     # Gather HF coupon web requests and distribute to parallel processes
     hf_coupon_count = len(hf_requests)
+    ten_percent_increment = max(1, round(hf_coupon_count * 0.1))
+    process_counter = 0
     processes = []
     with ProcessPoolExecutor() as p_executor:
         while hf_requests:                  # Loop through web requests, skip requests that haven't completed yet
@@ -131,6 +133,10 @@ if __name__ == "__main__":
             try:
                 result = request.result(0.001)
                 processes.append(p_executor.submit(process_coupon, result, hfqpdb_coupons))   # Save images that weren't found on HFQPDB
+
+                if process_counter % ten_percent_increment == 0 or process_counter + 1 == hf_coupon_count:
+                    print(f"Started processing coupon {process_counter + 1}/{hf_coupon_count}")
+                process_counter += 1
             except TimeoutError:
                 hf_requests.append(request)
 
