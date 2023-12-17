@@ -88,6 +88,11 @@ def process_coupon(hf_coupon, database):
 if __name__ == "__main__":
     # Do coupon downloading on many threads
     # TODO coupons are sometimes hidden on mobile coupon site: https://go.harborfreight.com/coupons/
+
+    # Delete old coupon folder, if it exists
+    if os.path.exists(SAVE_DIR):
+        shutil.rmtree(SAVE_DIR)
+
     with ThreadPoolExecutor() as t_executor:
         # Get current database coupons
         with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
@@ -111,10 +116,6 @@ if __name__ == "__main__":
                 if p is not None:
                     p = p.group()
                     hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
-
-    # Delete old coupon folder, if it exists
-    if os.path.exists(SAVE_DIR):
-        shutil.rmtree(SAVE_DIR)
 
     # Gather DB coupon results
     hfqpdb_coupons = []
