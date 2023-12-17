@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2023 Benjamin Steenkamer
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-import cv2
 import http.client
 import numpy as np
 import os
@@ -9,6 +8,8 @@ import re
 import shutil
 import urllib.error
 import urllib.request
+import cv2
+from tqdm import tqdm
 
 HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
@@ -16,25 +17,34 @@ HFQPDB = "https://www.hfqpdb.com"
 SAVE_DIR = "upload/"
 SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
 
-
-failure_urls = []    # Image URLs that failed to download
-hfqpdb_requests= []  # Store pending/complete web request
-hf_requests = []
-
-
-def dl_and_hash_coupon(url):
-    print("Downloading:", url)
-    last_slash = url.rfind("/") + 1
-    image_name = url[last_slash:]
+def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
+    failure_urls = []
+    coupon_urls = []
     try:
-        image_bytes = urllib.request.urlopen(url).read()
-        return image_bytes, hash(image_bytes), image_name
-    except (urllib.error.URLError, http.client.InvalidURL):
-        # URLError = image doesn't actually exist on HF website
-        # InvalidURL = bugged file path on HF website
+        with urllib.request.urlopen(url) as web_page:
+            for line in web_page.readlines():
+                coupon_url = re.search(re_search, line.decode())
+                if coupon_url is not None:
+                    coupon_urls.append(coupon_url.group().replace(replace, replace_with))
+    except urllib.error.URLError as ex:
         failure_urls.append(url)
-        return None, None, image_name
+        print(f"{ex}: {url}")
 
+    coupons = []
+    if coupon_urls:
+        for url in tqdm(coupon_urls, ncols=120, position=npos, desc=desc):
+            last_slash = url.rfind("/") + 1
+            image_name = url[last_slash:]
+            try:
+                image_bytes = urllib.request.urlopen(url).read()
+                coupons.append((image_bytes, hash(image_bytes), image_name))
+            except (urllib.error.URLError, http.client.InvalidURL):
+                # URLError = image doesn't actually exist on HF website
+                # InvalidURL = bugged file path on HF website
+                failure_urls.append(url)
+                coupons.append(None, None, image_name)
+
+    return coupons, failure_urls
 
 def coupons_are_similar(coupon_a, coupon_b):
     def template_cmp(image, template_image):
@@ -93,64 +103,30 @@ if __name__ == "__main__":
     if os.path.exists(SAVE_DIR):
         shutil.rmtree(SAVE_DIR)
 
-    with ThreadPoolExecutor() as t_executor:
-        # Get current database coupons
-        with urllib.request.urlopen(f"{HFQPDB}/browse") as hfqpdb_page:
-            for line in hfqpdb_page.readlines():
-                p = re.search("\/coupons\/(.+?)(png|jpg)", line.decode())
-                if p is not None:
-                    p = p.group().replace("/coupons/thumbs/tn_", f"{HFQPDB}/coupons/")    # Replace thumbnail image with full resolution image
-                    hfqpdb_requests.append(t_executor.submit(dl_and_hash_coupon, p))
-        # Get HF coupons from main coupon page
-        with urllib.request.urlopen(HF) as hf_page:
-            for line in hf_page.readlines():
-                p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", line.decode())
-                if p is not None:
-                    p = p.group()
-                    hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
+    p_executor = ProcessPoolExecutor()
+    db_coupons = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", "\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
+    main_coupons = p_executor.submit(download_coupons, *(HF, "https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
+    promo_coupons = p_executor.submit(download_coupons, *(HF_PROMO, "https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
 
-        # Get HF promo coupons (% off entire store, etc.)
-        with urllib.request.urlopen(HF_PROMO) as hf_page:
-            for line in hf_page.readlines():
-                p = re.search("https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", line.decode())
-                if p is not None:
-                    p = p.group()
-                    hf_requests.append(t_executor.submit(dl_and_hash_coupon, p))
+    # Gather downloaded coupons
+    db_coupons = db_coupons.result()[0]
+    hf_coupons = main_coupons.result()[0] + promo_coupons.result()[0]
+    failed_urls = db_coupons.result()[1] + main_coupons.result()[1] + promo_coupons.result()[1]
 
-    # Gather DB coupon results
-    hfqpdb_coupons = []
-    for r in hfqpdb_requests:
-        if r.result()[1] is not None:           # Must wait for entire DB to be retrieved before proceeding
-            hfqpdb_coupons.append(r.result())
-
-    # Gather HF coupon web requests and distribute to parallel processes
-    hf_coupon_count = len(hf_requests)
-    ten_percent_increment = max(1, round(hf_coupon_count * 0.1))
-    process_counter = 0
-    processes = []
-    with ProcessPoolExecutor() as p_executor:
-        while hf_requests:                  # Loop through web requests, skip requests that haven't completed yet
-            request = hf_requests.pop(0)
-            try:
-                result = request.result(0.001)
-                processes.append(p_executor.submit(process_coupon, result, hfqpdb_coupons))   # Save images that weren't found on HFQPDB
-
-                if process_counter % ten_percent_increment == 0 or process_counter + 1 == hf_coupon_count:
-                    print(f"Started processing coupon {process_counter + 1}/{hf_coupon_count}")
-                process_counter += 1
-            except TimeoutError:
-                hf_requests.append(request)
+    process_reqs = []
+    for hf_coupon in hf_coupons:
+        process_reqs.append(p_executor.submit(process_coupon, hf_coupon, db_coupons))
 
     not_found = []
-    for process in processes:
-        coupon_not_found = process.result()
+    for hf_coupon in tqdm(process_reqs, desc="Processing coupons", ncols=120):
+        coupon_not_found = process_reqs.result()
         if coupon_not_found is not None:
             not_found.append(coupon_not_found)
 
     # Print out image URLs that failed to download; all web request are completed at this point
-    if len(failure_urls) > 0:
+    if len(failed_urls) > 0:
         print("\nFAILED TO DOWNLOAD:")
-        for url in failure_urls:
+        for url in failed_urls:
             print(url)
 
     # Print out image names that were not found on HFQPDB
@@ -160,7 +136,7 @@ if __name__ == "__main__":
             print(name)
 
     # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
-    print(f"\n{hf_coupon_count - len(not_found)}/{hf_coupon_count} Harbor Freight coupons found on HFQPDB (DB coupon count={len(hfqpdb_coupons)})")
+    print(f"\n{len(hf_coupons) - len(not_found)}/{len(hf_coupons)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(db_coupons)})")
 
     if len(not_found) == 0:
         print("HFQPDB IS UP TO DATE")
