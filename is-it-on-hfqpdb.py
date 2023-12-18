@@ -17,8 +17,9 @@ HFQPDB = "https://www.hfqpdb.com"
 SAVE_DIR = "upload/"
 SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
 
+
 def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
-    failure_urls = []
+    failed_urls = []
     coupon_urls = []
     try:
         with urllib.request.urlopen(url) as web_page:
@@ -26,25 +27,43 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
                 coupon_url = re.search(re_search, line.decode())
                 if coupon_url is not None:
                     coupon_urls.append(coupon_url.group().replace(replace, replace_with))
-    except urllib.error.URLError as ex:
-        failure_urls.append(url)
-        print(f"{ex}: {url}")
+    except urllib.error.URLError:
+        failed_urls.append(url)
+
+    def _thread(url):
+        last_slash = url.rfind("/") + 1
+        image_name = url[last_slash:]
+        try:
+            image_bytes = urllib.request.urlopen(url).read()
+            return image_bytes, hash(image_bytes), image_name, url
+        except (urllib.error.URLError, http.client.InvalidURL):
+            # URLError = image doesn't actually exist on HF website
+            # InvalidURL = bugged file path on HF website
+            return None, None, image_name, url
+
+    requests = []
+    with ThreadPoolExecutor() as tpool:
+        for url in coupon_urls:
+            requests.append(tpool.submit(_thread, url))
 
     coupons = []
-    if coupon_urls:
-        for url in tqdm(coupon_urls, ncols=100, position=npos, desc=desc):
-            last_slash = url.rfind("/") + 1
-            image_name = url[last_slash:]
+    if requests:
+        pbar = tqdm(total=len(coupon_urls), ncols=100, position=npos, desc=desc)
+        while requests:
+            req = requests.pop(0)
             try:
-                image_bytes = urllib.request.urlopen(url).read()
-                coupons.append((image_bytes, hash(image_bytes), image_name))
-            except (urllib.error.URLError, http.client.InvalidURL):
-                # URLError = image doesn't actually exist on HF website
-                # InvalidURL = bugged file path on HF website
-                failure_urls.append(url)
-                coupons.append(None, None, image_name)
+                result = req.result(1e-3)
+                if result[0] is not None:
+                    coupons.append(result[:-1])
+                else:
+                    failed_urls.append(result[-1])
+                pbar.update(1)
+            except TimeoutError:
+                requests.push(req)
+    elif not failed_urls:
+        print("No coupons found    :", url)
 
-    return coupons, failure_urls
+    return coupons, failed_urls
 
 def coupons_are_similar(coupon_a, coupon_b):
     def template_cmp(image, template_image):
@@ -118,13 +137,13 @@ if __name__ == "__main__":
         process_reqs.append(p_executor.submit(process_coupon, hf_coupon, db_coupons))
 
     not_found = []
-    for hf_coupon in tqdm(process_reqs, desc="Processing coupons", ncols=120):
-        coupon_not_found = process_reqs.result()
+    for process_coupon_request in tqdm(process_reqs, desc="Processing coupons  ", ncols=100):
+        coupon_not_found = process_coupon_request.result()
         if coupon_not_found is not None:
             not_found.append(coupon_not_found)
 
     # Print out image URLs that failed to download; all web request are completed at this point
-    if len(failed_urls) > 0:
+    if failed_urls:
         print("\nFAILED TO DOWNLOAD:")
         for url in failed_urls:
             print(url)
