@@ -60,7 +60,7 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
                 pbar.update(1)
             except TimeoutError:
                 requests.push(req)
-    elif not failed_urls:
+    elif not failed_urls:   # Only prints if no failed URLs and no coupon downloaded
         print("No coupons found    :", url)
 
     return coupons, failed_urls
