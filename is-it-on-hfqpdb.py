@@ -11,6 +11,7 @@ import urllib.request
 import cv2
 from tqdm import tqdm
 
+
 HF = "https://www.harborfreight.com/coupons"
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
 HFQPDB = "https://www.hfqpdb.com"
@@ -65,6 +66,7 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
 
     return coupons, failed_urls
 
+
 def coupons_are_similar(coupon_a, coupon_b):
     def template_cmp(image, template_image):
         """
@@ -113,6 +115,7 @@ def process_coupon(hf_coupon, database):
                 fp.write(hf_image)
 
     return not_found
+
 
 if __name__ == "__main__":
     # Do coupon downloading on many threads
