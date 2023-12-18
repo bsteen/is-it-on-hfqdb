@@ -32,7 +32,7 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
 
     coupons = []
     if coupon_urls:
-        for url in tqdm(coupon_urls, ncols=120, position=npos, desc=desc):
+        for url in tqdm(coupon_urls, ncols=100, position=npos, desc=desc):
             last_slash = url.rfind("/") + 1
             image_name = url[last_slash:]
             try:
@@ -104,14 +104,14 @@ if __name__ == "__main__":
         shutil.rmtree(SAVE_DIR)
 
     p_executor = ProcessPoolExecutor()
-    db_coupons = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", "\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
-    main_coupons = p_executor.submit(download_coupons, *(HF, "https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
-    promo_coupons = p_executor.submit(download_coupons, *(HF_PROMO, "https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
+    db_requests = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", "\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
+    main_requests= p_executor.submit(download_coupons, *(HF, "https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
+    promo_request = p_executor.submit(download_coupons, *(HF_PROMO, "https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
 
     # Gather downloaded coupons
-    db_coupons = db_coupons.result()[0]
-    hf_coupons = main_coupons.result()[0] + promo_coupons.result()[0]
-    failed_urls = db_coupons.result()[1] + main_coupons.result()[1] + promo_coupons.result()[1]
+    db_coupons = db_requests.result()[0]
+    hf_coupons = main_requests.result()[0] + promo_request.result()[0]
+    failed_urls = db_requests.result()[1] + main_requests.result()[1] + promo_request.result()[1]
 
     process_reqs = []
     for hf_coupon in hf_coupons:
