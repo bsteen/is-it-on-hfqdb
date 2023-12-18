@@ -122,6 +122,8 @@ if __name__ == "__main__":
         shutil.rmtree(SAVE_DIR)
 
     p_executor = ProcessPoolExecutor()
+
+    # Download coupons from HF and DB
     db_requests = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", "\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
     main_requests= p_executor.submit(download_coupons, *(HF, "https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
     promo_request = p_executor.submit(download_coupons, *(HF_PROMO, "https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
@@ -131,10 +133,12 @@ if __name__ == "__main__":
     hf_coupons = main_requests.result()[0] + promo_request.result()[0]
     failed_urls = db_requests.result()[1] + main_requests.result()[1] + promo_request.result()[1]
 
+    # Process coupons
     process_reqs = []
     for hf_coupon in hf_coupons:
         process_reqs.append(p_executor.submit(process_coupon, hf_coupon, db_coupons))
 
+    # Gather processed coupon results
     not_found = []
     pbar = tqdm(total=len(process_reqs), desc="Processing coupons  ", ncols=100)
     for request in as_completed(process_reqs):  # yields futures as they complete
@@ -150,7 +154,7 @@ if __name__ == "__main__":
             print(url)
 
     # Print out image names that were not found on HFQPDB
-    if len(not_found) != 0:
+    if not_found:
         print("\nNot found on HFQPDB:")
         for name in not_found:
             print(name)
@@ -158,7 +162,7 @@ if __name__ == "__main__":
     # Expect the DB size to be larger than the current HF coupon page; DB contains never expire coupons that HF doesn't advertise
     print(f"\n{len(hf_coupons) - len(not_found)}/{len(hf_coupons)} Harbor Freight coupons found on HFQPDB (DB coupon count={len(db_coupons)})")
 
-    if len(not_found) == 0:
+    if not not_found:
         print("HFQPDB IS UP TO DATE")
     else:
         print(f"Consider uploading the {len(not_found)} missing coupon(s) in to {HFQPDB}/mass_coupon_submit\nCoupon save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
