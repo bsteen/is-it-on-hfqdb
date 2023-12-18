@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2023 Benjamin Steenkamer
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import http.client
 import numpy as np
 import os
@@ -49,18 +49,14 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
 
     coupons = []
     if requests:
-        pbar = tqdm(total=len(coupon_urls), ncols=100, position=npos, desc=desc)
-        while requests:
-            req = requests.pop(0)
-            try:
-                result = req.result(1e-3)
+        pbar = tqdm(total=len(requests), ncols=100, position=npos, desc=desc)
+        for request in as_completed(requests):  # yields futures as they complete
+                result = request.result()
                 if result[0] is not None:
                     coupons.append(result[:-1])
                 else:
                     failed_urls.append(result[-1])
                 pbar.update(1)
-            except TimeoutError:
-                requests.push(req)
     elif not failed_urls:   # Only prints if no failed URLs and no coupon downloaded
         print("No coupons found    :", url)
 
