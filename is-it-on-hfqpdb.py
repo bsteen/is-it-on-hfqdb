@@ -140,12 +140,12 @@ if __name__ == "__main__":
 
     # Gather processed coupon results
     not_found = []
-    pbar = tqdm(total=len(process_reqs), desc="Processing coupons  ", ncols=100)
-    for request in as_completed(process_reqs):  # yields futures as they complete
-        coupon_not_found = request.result()
-        if coupon_not_found is not None:
-            not_found.append(coupon_not_found)
-        pbar.update(1)
+    with tqdm(total=len(process_reqs), desc="Processing coupons  ", ncols=100) as pbar:
+        for request in as_completed(process_reqs):  # yields futures as they complete
+            coupon_not_found = request.result()
+            if coupon_not_found is not None:
+                not_found.append(coupon_not_found)
+            pbar.update(1)
 
     # Print out image URLs that failed to download; all web request are completed at this point
     if failed_urls:
