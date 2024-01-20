@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright 2023 Benjamin Steenkamer
+# Copyright 2023 - 2024 Benjamin Steenkamer
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import http.client
 import numpy as np
