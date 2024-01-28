@@ -165,5 +165,5 @@ if __name__ == "__main__":
     if not not_found:
         print("HFQPDB IS UP TO DATE")
     else:
-        print(f"Consider uploading the {len(not_found)} missing coupon(s) in to {HFQPDB}/mass_coupon_submit\nCoupon save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
+        print(f"Consider uploading the {len(not_found)} missing coupon(s) to {HFQPDB}/mass_coupon_submit\nCoupon save location: {os.getcwd()}{os.sep}{SAVE_DIR}")
     input("Press ENTER key to exit")
