@@ -49,7 +49,7 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
 
     coupons = []
     if requests:
-        pbar = tqdm(total=len(requests), ncols=100, position=npos, desc=desc)
+        pbar = tqdm(total=len(requests), position=npos, desc=desc)
         for request in as_completed(requests):  # yields futures as they complete
                 result = request.result()
                 if result[0] is not None:
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     # Gather processed coupon results
     not_found = []
-    with tqdm(total=len(process_reqs), desc="Processing coupons  ", ncols=100) as pbar:
+    with tqdm(total=len(process_reqs), desc="Processing coupons  ") as pbar:
         for request in as_completed(process_reqs):  # yields futures as they complete
             coupon_not_found = request.result()
             if coupon_not_found is not None:
