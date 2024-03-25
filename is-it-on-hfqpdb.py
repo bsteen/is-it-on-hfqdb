@@ -51,12 +51,12 @@ def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
     if requests:
         pbar = tqdm(total=len(requests), position=npos, desc=desc)
         for request in as_completed(requests):  # yields futures as they complete
-                result = request.result()
-                if result[0] is not None:
-                    coupons.append(result[:-1])
-                else:
-                    failed_urls.append(result[-1])
-                pbar.update(1)
+            result = request.result()
+            if result[0] is not None:
+                coupons.append(result[:-1])
+            else:
+                failed_urls.append(result[-1])
+            pbar.update(1)
     elif not failed_urls:   # Only prints if no failed URLs and no coupon downloaded
         print("No coupons found    :", url)
 
