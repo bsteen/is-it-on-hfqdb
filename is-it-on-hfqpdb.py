@@ -124,9 +124,9 @@ if __name__ == "__main__":
     p_executor = ProcessPoolExecutor()
 
     # Download coupons from HF and DB
-    db_requests = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", "\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
-    main_requests= p_executor.submit(download_coupons, *(HF, "https:\/\/images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
-    promo_request = p_executor.submit(download_coupons, *(HF_PROMO, "https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
+    db_requests = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", r"\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
+    main_requests= p_executor.submit(download_coupons, *(HF, r"https://images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
+    promo_request = p_executor.submit(download_coupons, *(HF_PROMO, r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
 
     # Gather downloaded coupons
     db_coupons = db_requests.result()[0]
