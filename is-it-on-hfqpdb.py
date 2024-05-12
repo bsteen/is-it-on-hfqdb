@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 # Copyright 2023 - 2024 Benjamin Steenkamer
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import http.client
-import numpy as np
 import os
 import re
 import shutil
 import urllib.error
 import urllib.request
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import cv2
+import numpy as np
 from tqdm import tqdm
 
 
