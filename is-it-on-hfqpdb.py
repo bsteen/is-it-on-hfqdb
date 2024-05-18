@@ -21,7 +21,7 @@ HF_PROMO_RE = re.compile(r"https:\/\/images\.harborfreight\.com\/hftweb\/promoti
 HFQPDB = "https://www.hfqpdb.com"
 HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
 
-SAVE_DIR = "upload/"
+SAVE_DIR = "coupons/"
 SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
 
 
