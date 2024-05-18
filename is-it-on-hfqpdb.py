@@ -13,19 +13,25 @@ from tqdm import tqdm
 
 
 HF = "https://www.harborfreight.com/coupons"
+HF_RE = re.compile(r"https://images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png")
+
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
+HF_PROMO_RE = re.compile(r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png")
+
 HFQPDB = "https://www.hfqpdb.com"
+HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
+
 SAVE_DIR = "upload/"
 SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
 
 
-def download_coupons(url, re_search, desc, npos, replace="", replace_with=""):
+def download_coupons(url, re_obj, desc, npos, replace="", replace_with=""):
     failed_urls = []
     coupon_urls = []
     try:
         with urllib.request.urlopen(url) as web_page:
             for line in web_page.readlines():
-                coupon_url = re.search(re_search, line.decode())
+                coupon_url = re_obj.search(line.decode())
                 if coupon_url is not None:
                     coupon_urls.append(coupon_url.group().replace(replace, replace_with))
     except urllib.error.URLError:
@@ -124,9 +130,9 @@ if __name__ == "__main__":
     p_executor = ProcessPoolExecutor()
 
     # Download coupons from HF and DB
-    db_requests = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", r"\/coupons\/(.+?)(png|jpg)", "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
-    main_requests= p_executor.submit(download_coupons, *(HF, r"https://images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png", "Downloading HF      ", 1))
-    promo_request = p_executor.submit(download_coupons, *(HF_PROMO, r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png", "Downloading HF Promo", 2))
+    db_requests = p_executor.submit(download_coupons, *(f"{HFQPDB}/browse", HFQPDB_RE, "Downloading HFQPDB  ", 0, "/coupons/thumbs/tn_", f"{HFQPDB}/coupons/"))
+    main_requests= p_executor.submit(download_coupons, *(HF, HF_RE, "Downloading HF      ", 1))
+    promo_request = p_executor.submit(download_coupons, *(HF_PROMO, HF_PROMO_RE, "Downloading HF Promo", 2))
 
     # Gather downloaded coupons
     db_coupons = db_requests.result()[0]
