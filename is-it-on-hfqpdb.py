@@ -16,7 +16,7 @@ HF = "https://www.harborfreight.com/coupons"
 HF_RE = re.compile(r"https://images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png")
 
 HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
-HF_PROMO_RE = re.compile(r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)png")
+HF_PROMO_RE = re.compile(r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)(png|jpg)")
 
 HFQPDB = "https://www.hfqpdb.com"
 HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
