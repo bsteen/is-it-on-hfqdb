@@ -22,7 +22,7 @@ HFQPDB = "https://www.hfqpdb.com"
 HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
 
 SAVE_DIR = "coupons/"
-SIMILAR_THRESHOLD = 0.9     # How similar two images have to be to be considered the same
+SIMILAR_THRESHOLD = 0.8     # How similar two images have to be to be considered the same
 
 
 def download_coupons(url, re_obj, desc, npos, replace="", replace_with=""):
