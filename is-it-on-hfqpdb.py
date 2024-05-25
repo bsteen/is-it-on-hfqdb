@@ -31,9 +31,8 @@ def download_coupons(url, re_obj, desc, npos, replace="", replace_with=""):
     try:
         with urllib.request.urlopen(url) as web_page:
             for line in web_page.readlines():
-                coupon_url = re_obj.search(line.decode())
-                if coupon_url is not None:
-                    coupon_urls.append(coupon_url.group().replace(replace, replace_with))
+                for coupon in re_obj.finditer(line.decode("unicode-escape")):
+                    coupon_urls.append(coupon.group().replace(replace, replace_with))
     except urllib.error.URLError:
         failed_urls.append(url)
 
