@@ -19,7 +19,6 @@ HF_PROMO = "https://www.harborfreight.com/promotions"   # % off coupons
 HF_PROMO_RE = re.compile(r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)(png|jpg)")
 
 HFQPDB = "https://www.hfqpdb.com"
-# HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
 HFQPDB_RE = re.compile(r'\/coupons\/[^"]+')     # Coupons sometimes don't end with a file extension, so this matches to the end of <img src="">
 
 SAVE_DIR = "coupons/"
