@@ -15,11 +15,12 @@ from tqdm import tqdm
 HF = "https://www.harborfreight.com/coupons"
 HF_RE = re.compile(r"https://images\.harborfreight\.com\/hftweb\/weblanding\/coupon-deals\/images\/(.+?)png")
 
-HF_PROMO = "https://www.harborfreight.com/promotions"   # percent off coupons
+HF_PROMO = "https://www.harborfreight.com/promotions"   # % off coupons
 HF_PROMO_RE = re.compile(r"https:\/\/images\.harborfreight\.com\/hftweb\/promotions(.+?)(png|jpg)")
 
 HFQPDB = "https://www.hfqpdb.com"
-HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
+# HFQPDB_RE = re.compile(r"\/coupons\/(.+?)(png|jpg)")
+HFQPDB_RE = re.compile(r'\/coupons\/[^"]+')     # Coupons sometimes don't end with a file extension, so this matches to the end of <img src="">
 
 SAVE_DIR = "coupons/"
 SIMILAR_THRESHOLD = 0.8     # How similar two images have to be to be considered the same
