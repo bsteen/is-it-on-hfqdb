@@ -26,13 +26,16 @@ SIMILAR_THRESHOLD = 0.8     # How similar two images have to be to be considered
 
 
 def download_coupons(url, re_obj, desc, npos, replace="", replace_with=""):
-    failed_urls = []
     coupon_urls = []
+    failed_urls = []
+
     try:
         with urllib.request.urlopen(url) as web_page:
             for line in web_page.readlines():
                 for coupon in re_obj.finditer(line.decode("unicode-escape")):
-                    coupon_urls.append(coupon.group().replace(replace, replace_with))
+                    c_url = coupon.group().replace(replace, replace_with)
+                    if c_url not in coupon_urls:    # Harbor Freight HTML can have duplicate URLs, so save once
+                        coupon_urls.append(c_url)
     except urllib.error.URLError:
         failed_urls.append(url)
 
